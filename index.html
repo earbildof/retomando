@@ -48,11 +48,18 @@ let particles = targets.map(t => ({
   y: -Math.random() * canvas.height,
   tx: t.x,
   ty: t.y,
-  vy: Math.random() * 1.2 + 0.3
+  vy: Math.random() * 1.2 + 0.3,
+  phase: Math.random() * Math.PI * 2 // 👈 CLAVE
 }));
 
 const HEART_RATE = 1.2; // latidos por segundo (lento)
 const PULSE_AMPLITUDE = 0.03; // qué tanto late (sutil)
+
+function particlePulse(p, time) {
+  return 1 + Math.sin(time * HEART_RATE + p.phase) * PULSE_AMPLITUDE;
+}
+
+
 
 function draw() {
   let time = Date.now() * 0.002;
@@ -72,16 +79,21 @@ function draw() {
     }
 
     // 🧲 atracción MUY SUAVE al borde
-    let px = p.tx * pulse;
-    let py = p.ty * pulse;
+    let pulse = particlePulse(p, time);
 
-    p.x += (px - p.x) * 0.02 * progress;
-    p.y += (py - p.y) * 0.02 * progress;
+    // objetivo imperfecto
+    let px = p.tx * pulse + (Math.random() - 0.5) * 0.8;
+    let py = p.ty * pulse + (Math.random() - 0.5) * 0.8;
+
+    p.x += (px - p.x) * 0.018 * progress;
+    p.y += (py - p.y) * 0.018 * progress;
+
 
 
     // ✨ vibración leve (granulado)
-    p.x += (Math.random() - 0.5) * 0.15;
-    p.y += (Math.random() - 0.5) * 0.15;
+    p.x += (Math.random() - 0.5) * 0.25;
+    p.y += (Math.random() - 0.5) * 0.25;
+
 
     ctx.fillStyle = "rgba(220,150,255,0.85)"; // 💜 lila
     ctx.beginPath();
