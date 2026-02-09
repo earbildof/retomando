@@ -1,35 +1,30 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Corazón con cámara</title>
-  <style>
-    body { margin:0; background:black; overflow:hidden; }
-    canvas { position:absolute; top:0; left:0; }
-    video { display:none; }
-  </style>
+<meta charset="UTF-8">
+<title>Corazón que explota</title>
+<style>
+  body { margin:0; background:black; overflow:hidden; }
+  canvas { display:block; }
+</style>
 </head>
 <body>
 
-<video id="video" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
 
-<!-- MediaPipe -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-
 <script>
-const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let handX = canvas.width / 2;
-let handY = canvas.height / 2;
+// ⏱️ Tiempo total de construcción
+const BUILD_TIME = 10000; // 10 segundos
+let startTime = Date.now();
+let exploded = false;
 
-// 💚 Función corazón
+// ❤️ función corazón
 function heart(t) {
   return {
     x: 16 * Math.pow(Math.sin(t), 3),
@@ -37,24 +32,60 @@ function heart(t) {
   };
 }
 
-// Partículas
-let particles = [];
-for (let i = 0; i < 1200; i++) {
+// Partículas objetivo
+let target = [];
+for (let i = 0; i < 2000; i++) {
   let t = Math.random() * Math.PI * 2;
   let h = heart(t);
-  particles.push({ x:h.x*8, y:h.y*8 });
+  target.push({
+    tx: h.x * 10,
+    ty: h.y * 10
+  });
 }
 
-// Render
+// Partículas reales
+let particles = target.map(p => ({
+  x: 0,
+  y: 0,
+  vx: 0,
+  vy: 0
+}));
+
 function draw() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.save();
-  ctx.translate(handX, handY);
+  ctx.translate(canvas.width/2, canvas.height/2);
 
-  particles.forEach(p => {
-    ctx.fillStyle = "rgba(0,255,180,0.9)";
+  let elapsed = Date.now() - startTime;
+  let progress = Math.min(elapsed / BUILD_TIME, 1);
+
+  particles.forEach((p, i) => {
+
+    if (!exploded) {
+      // 🔧 Construcción progresiva
+      p.x += (target[i].tx - p.x) * 0.05 * progress;
+      p.y += (target[i].ty - p.y) * 0.05 * progress;
+
+      if (progress === 1 && !exploded) {
+        exploded = true;
+        particles.forEach(p => {
+          p.vx = (Math.random() - 0.5) * 15;
+          p.vy = (Math.random() - 0.5) * 15;
+        });
+      }
+    } else {
+      // 💥 Explosión
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.1; // gravedad suave
+    }
+
+    ctx.fillStyle = exploded
+      ? "rgba(255,80,80,0.8)"
+      : "rgba(0,255,180,0.9)";
+
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 1.5, 0, Math.PI*2);
+    ctx.arc(p.x, p.y, 1.6, 0, Math.PI*2);
     ctx.fill();
   });
 
@@ -62,35 +93,6 @@ function draw() {
   requestAnimationFrame(draw);
 }
 
-// MediaPipe Hands
-const hands = new Hands({
-  locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-});
-
-hands.setOptions({
-  maxNumHands: 1,
-  minDetectionConfidence: 0.7,
-  minTrackingConfidence: 0.7
-});
-
-hands.onResults(results => {
-  if (results.multiHandLandmarks) {
-    let p = results.multiHandLandmarks[0][9]; // centro de la mano
-    handX = p.x * canvas.width;
-    handY = p.y * canvas.height;
-  }
-});
-
-// Cámara
-const camera = new Camera(video, {
-  onFrame: async () => {
-    await hands.send({image: video});
-  },
-  width: 640,
-  height: 480
-});
-
-camera.start();
 draw();
 </script>
 </body>
